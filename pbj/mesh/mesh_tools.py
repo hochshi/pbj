@@ -2,9 +2,10 @@ import trimesh
 import numpy as np
 import subprocess
 import os
-import bempp.api
+import bempp_cl.api
 import platform
 import shutil
+import meshio
 
 
 def fix_mesh(mesh):
@@ -325,7 +326,7 @@ def import_msms_mesh(mesh_face_path, mesh_vert_path):
     faces = np.vstack(np.char.split(face.split("\n")[0:-1]))[:, :3].astype(int) - 1
     verts = np.vstack(np.char.split(vert.split("\n")[0:-1]))[:, :3].astype(float)
 
-    grid = bempp.api.Grid(verts.transpose(), faces.transpose())
+    grid = bempp_cl.api.Grid(verts.transpose(), faces.transpose())
     return grid
 
 
@@ -344,7 +345,7 @@ def import_off_mesh(mesh_off_path):
         Bempp Grid object.
 
     """
-    grid = bempp.api.import_grid(mesh_off_path)
+    grid = bempp_cl.api.import_grid(mesh_off_path)
     return grid
 
 
@@ -367,3 +368,4 @@ def density_to_nanoshaper_grid_scale_conversion(mesh_density):
         0.797 * (mesh_density**0.507), 2
     )  # Emperical relation found by creating meshes using nanoshaper and calculating their density
     return grid_scale
+

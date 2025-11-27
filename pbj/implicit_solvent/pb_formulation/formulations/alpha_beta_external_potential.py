@@ -1,7 +1,7 @@
 import numpy as np
-import bempp.api
+import bempp_cl.api
 import os
-from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+from bempp_cl.api.operators.boundary import sparse, laplace, modified_helmholtz
 from .common import calculate_potential_one_surface
 
 invert_potential = True
@@ -35,25 +35,25 @@ def lhs(self):
     A_in = laplace_multitrace(dirichl_space, neumann_space, operator_assembler)
     A_ex = mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler)
 
-    D = bempp.api.BlockedOperator(2, 2)
+    D = bempp_cl.api.BlockedOperator(2, 2)
     D[0, 0] = alpha * phi_id
     D[0, 1] = 0.0 * phi_id
     D[1, 0] = 0.0 * phi_id
     D[1, 1] = beta * dph_id
 
-    E_1 = bempp.api.BlockedOperator(2, 2)
+    E_1 = bempp_cl.api.BlockedOperator(2, 2)
     E_1[0, 0] = phi_id
     E_1[0, 1] = 0.0 * phi_id
     E_1[1, 0] = 0.0 * phi_id
     E_1[1, 1] = dph_id * ep
 
-    F = bempp.api.BlockedOperator(2, 2)
+    F = bempp_cl.api.BlockedOperator(2, 2)
     F[0, 0] = alpha * phi_id
     F[0, 1] = 0.0 * phi_id
     F[1, 0] = 0.0 * phi_id
     F[1, 1] = dph_id * (beta / ep)
 
-    Id = bempp.api.BlockedOperator(2, 2)
+    Id = bempp_cl.api.BlockedOperator(2, 2)
     Id[0, 0] = phi_id
     Id[0, 1] = 0.0 * phi_id
     Id[1, 0] = 0.0 * phi_id
@@ -79,7 +79,7 @@ def rhs(self):
 
     if rhs_constructor == "fmm":
 
-        @bempp.api.callable(vectorized=True)
+        @bempp_cl.api.callable(vectorized=True)
         def fmm_green_func(x, n, domain_index, result):
             import exafmm.laplace as _laplace
 
@@ -91,7 +91,7 @@ def rhs(self):
             os.remove(".rhs.tmp")
             result[:] = (-1.0) * values[:, 0] / ep_in
 
-        @bempp.api.callable(vectorized=True)
+        @bempp_cl.api.callable(vectorized=True)
         def fmm_d_green_func(x, n, domain_index, result):
             import exafmm.laplace as _laplace
 
@@ -103,12 +103,12 @@ def rhs(self):
             os.remove(".rhs.tmp")
             result[:] = (-1.0) * np.sum(values[:, 1:] * n.T, axis=1) / ep_in
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=fmm_green_func)
-        rhs_2 = bempp.api.GridFunction(dirichl_space, fun=fmm_d_green_func)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=fmm_green_func)
+        rhs_2 = bempp_cl.api.GridFunction(dirichl_space, fun=fmm_d_green_func)
 
     else:
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def d_green_func(x, n, domain_index, result):
             nrm = np.sqrt(
                 (x[0] - x_q[:, 0]) ** 2
@@ -118,7 +118,7 @@ def rhs(self):
             const = -1.0 / (4.0 * np.pi * ep_in)
             result[:] = (-1.0) * const * np.sum(q * np.dot(x - x_q, n) / (nrm**3))
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def green_func(x, n, domain_index, result):
             nrm = np.sqrt(
                 (x[0] - x_q[:, 0]) ** 2
@@ -127,14 +127,14 @@ def rhs(self):
             )
             result[:] = (-1.0) * np.sum(q / nrm) / (4.0 * np.pi * ep_in)
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
-        rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=green_func)
+        rhs_2 = bempp_cl.api.GridFunction(dirichl_space, fun=d_green_func)
 
     self.rhs["rhs_1"], self.rhs["rhs_2"] = rhs_1, rhs_2
 
 
 def laplace_multitrace(dirichl_space, neumann_space, operator_assembler):
-    A = bempp.api.BlockedOperator(2, 2)
+    A = bempp_cl.api.BlockedOperator(2, 2)
     A[0, 0] = (-1.0) * laplace.double_layer(
         dirichl_space, dirichl_space, dirichl_space, assembler=operator_assembler
     )
@@ -152,7 +152,7 @@ def laplace_multitrace(dirichl_space, neumann_space, operator_assembler):
 
 
 def mod_helm_multitrace(dirichl_space, neumann_space, kappa, operator_assembler):
-    A = bempp.api.BlockedOperator(2, 2)
+    A = bempp_cl.api.BlockedOperator(2, 2)
     A[0, 0] = (-1.0) * modified_helmholtz.double_layer(
         dirichl_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler
     )

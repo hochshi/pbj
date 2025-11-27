@@ -1,5 +1,5 @@
 import numpy as np
-import bempp.api
+import bempp_cl.api
 from .slic import calculate_potential_slic ############ maybe move to .common?????? CHECK
 import pbj
 
@@ -36,22 +36,22 @@ def create_ehat_stern(self):
     ep_stern = getattr(self, "ep_stern", self.ep_ex)
     self.ep_stern = ep_stern
 
-    @bempp.api.real_callable
+    @bempp_cl.api.real_callable
     def d1_function(x, n, domain_index, result):
         nrm = np.sqrt(
             (x[0] - x_q[:, 0]) ** 2 + (x[1] - x_q[:, 1]) ** 2 + (x[2] - x_q[:, 2]) ** 2
         )
         result[:] = np.sum(q / nrm)
 
-    d1_fun = bempp.api.GridFunction(neumann_space_stern, fun=d1_function)
+    d1_fun = bempp_cl.api.GridFunction(neumann_space_stern, fun=d1_function)
     if np.sum(q) < 1e-8:
         d1_mat = -(1 / ep_stern) * d1_fun.coefficients
     else:
         d1_mat = (
             -(np.sum(q) / ep_stern) * d1_fun.coefficients / np.mean(d1_fun.coefficients)
         )
-    d1_gridfun = bempp.api.GridFunction(neumann_space_stern, coefficients=d1_mat)
-    d1_op = bempp.api.assembly.boundary_operator.MultiplicationOperator(
+    d1_gridfun = bempp_cl.api.GridFunction(neumann_space_stern, coefficients=d1_mat)
+    d1_op = bempp_cl.api.assembly.boundary_operator.MultiplicationOperator(
         d1_gridfun, neumann_space_stern, neumann_space_stern, neumann_space_stern
     )
     d2 = self.results["d_phi_stern"].integrate()[0]
@@ -75,7 +75,7 @@ def calculate_potential(self, rerun_all, rerun_rhs):
     it = 0
     phi_L2error = 1.0
 
-    sigma = bempp.api.GridFunction(
+    sigma = bempp_cl.api.GridFunction(
         dirichl_space_diel, coefficients=np.zeros(dirichl_space_diel.global_dof_count)
     )
 

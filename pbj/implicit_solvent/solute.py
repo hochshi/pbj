@@ -1,9 +1,10 @@
 import re
-import bempp.api
+import bempp_cl.api
 import os
 import numpy as np
 import time
 import shutil
+import meshio
 import pbj.mesh.mesh_tools as mesh_tools
 import pbj.mesh.charge_tools as charge_tools
 import pbj.implicit_solvent.pb_formulation.formulations as pb_formulations
@@ -108,7 +109,7 @@ class Solute:
 
             else:  # Assume use of file that can be directly imported into bempp
                 self.external_mesh_file_path = external_mesh_file
-                self.mesh = bempp.api.import_grid(self.external_mesh_file_path)
+                self.mesh = bempp_cl.api.import_grid(self.external_mesh_file_path)
 
             if force_field == "amoeba":
                 (
@@ -223,8 +224,8 @@ class Solute:
         self.timings = dict()
 
         # Setup Dirichlet and Neumann spaces to use, save these as object vars
-        dirichl_space = bempp.api.function_space(self.mesh, "P", 1)
-        # neumann_space = bempp.api.function_space(self.mesh, "P", 1)
+        dirichl_space = bempp_cl.api.function_space(self.mesh, "P", 1)
+        # neumann_space = bempp_cl.api.function_space(self.mesh, "P", 1)
         neumann_space = dirichl_space
         self.dirichl_space = dirichl_space
         self.neumann_space = neumann_space
@@ -379,7 +380,7 @@ class Solute:
         solution_dirichl = self.results["phi"]
         solution_neumann = self.results["d_phi"]
 
-        from bempp.api.operators.potential.laplace import single_layer, double_layer
+        from bempp_cl.api.operators.potential.laplace import single_layer, double_layer
 
         slp_q = single_layer(self.neumann_space, self.x_q.transpose())
         dlp_q = double_layer(self.dirichl_space, self.x_q.transpose())
@@ -469,10 +470,10 @@ class Solute:
         dx = np.concatenate(
             (self.x_q[:] + dist[0], self.x_q[:] - dist[0])
         )  # vector x+h y luego x-h
-        slpo = bempp.api.operators.potential.laplace.single_layer(
+        slpo = bempp_cl.api.operators.potential.laplace.single_layer(
             self.neumann_space, dx.transpose()
         )
-        dlpo = bempp.api.operators.potential.laplace.double_layer(
+        dlpo = bempp_cl.api.operators.potential.laplace.double_layer(
             self.dirichl_space, dx.transpose()
         )
         phi = slpo.evaluate(solution_neumann) - dlpo.evaluate(solution_dirichl)
@@ -481,10 +482,10 @@ class Solute:
 
         # y axis derivate
         dy = np.concatenate((self.x_q[:] + dist[1], self.x_q[:] - dist[1]))
-        slpo = bempp.api.operators.potential.laplace.single_layer(
+        slpo = bempp_cl.api.operators.potential.laplace.single_layer(
             self.neumann_space, dy.transpose()
         )
-        dlpo = bempp.api.operators.potential.laplace.double_layer(
+        dlpo = bempp_cl.api.operators.potential.laplace.double_layer(
             self.dirichl_space, dy.transpose()
         )
         phi = slpo.evaluate(solution_neumann) - dlpo.evaluate(solution_dirichl)
@@ -493,10 +494,10 @@ class Solute:
 
         # z axis derivate
         dz = np.concatenate((self.x_q[:] + dist[2], self.x_q[:] - dist[2]))
-        slpo = bempp.api.operators.potential.laplace.single_layer(
+        slpo = bempp_cl.api.operators.potential.laplace.single_layer(
             self.neumann_space, dz.transpose()
         )
-        dlpo = bempp.api.operators.potential.laplace.double_layer(
+        dlpo = bempp_cl.api.operators.potential.laplace.double_layer(
             self.dirichl_space, dz.transpose()
         )
         phi = slpo.evaluate(solution_neumann) - dlpo.evaluate(solution_dirichl)
@@ -543,16 +544,16 @@ class Solute:
             for j in np.where(np.array([0, 1, 2]) >= i)[0]:
                 if i==j:
                     dp = np.concatenate((x_q[:] + dist[i], x_q[:], x_q[:] - dist[i]))
-                    slpo = bempp.api.operators.potential.laplace.single_layer(neumann_space, dp.transpose())
-                    dlpo = bempp.api.operators.potential.laplace.double_layer(dirichl_space, dp.transpose())
+                    slpo = bempp_cl.api.operators.potential.laplace.single_layer(neumann_space, dp.transpose())
+                    dlpo = bempp_cl.api.operators.potential.laplace.double_layer(dirichl_space, dp.transpose())
                     phi = slpo.evaluate(solution_neumann) - dlpo.evaluate(solution_dirichl)
                     ddphi[:,i,j] = (phi[0,:len(x_q)] - 2*phi[0,len(x_q):2*len(x_q)] + phi[0, 2*len(x_q):])/(h**2)
 
                 else:
                     dp = np.concatenate((x_q[:] + dist[i] + dist[j], x_q[:] - dist[i] - dist[j], x_q[:] + \
                                          dist[i] - dist[j], x_q[:] - dist[i] + dist[j]))
-                    slpo = bempp.api.operators.potential.laplace.single_layer(neumann_space, dp.transpose())
-                    dlpo = bempp.api.operators.potential.laplace.double_layer(dirichl_space, dp.transpose())
+                    slpo = bempp_cl.api.operators.potential.laplace.single_layer(neumann_space, dp.transpose())
+                    dlpo = bempp_cl.api.operators.potential.laplace.double_layer(dirichl_space, dp.transpose())
                     phi = slpo.evaluate(solution_neumann) - dlpo.evaluate(solution_dirichl)
                     ddphi[:,i,j] = (phi[0,:len(x_q)] + phi[0,len(x_q):2*len(x_q)] - \
                                     phi[0, 2*len(x_q):3*len(x_q)] - phi[0, 3*len(x_q):])/(4*h**2)
@@ -748,6 +749,8 @@ class Solute:
             total_force = np.zeros(3)
             convert_to_kcalmolA = 4 * np.pi * 332.0636817823836
 
+            E_faces = np.zeros((N_elements, 3))
+
             for i in range(N_elements):
                 eps = self.mesh.normals[i]
                 
@@ -782,6 +785,9 @@ class Solute:
                 E_eps = -dphi_centers[i]
                 E_eta = -a
                 E_tau = -b
+
+                E_vec = E_eps * eps + E_eta * eta + E_tau * tau
+                E_faces[i, :] = E_vec
                 
                 E_norm = np.sqrt(E_eps*E_eps + E_eta*E_eta + E_tau*E_tau)
                 
@@ -791,6 +797,39 @@ class Solute:
                 total_force += F * self.mesh.volumes[i]   
                 P_normal[i] = np.sqrt(np.dot(F * self.mesh.volumes[i], F * self.mesh.volumes[i]))
                 
+            self.results["E_faces"] = E_faces
+
+            # After computing E_faces in calculate_solvation_forces:
+
+            N_elements = self.mesh.number_of_elements
+            N_vertices = self.mesh.number_of_vertices  # or self.mesh.vertices.shape[1]
+
+            elements = self.mesh.elements              # shape (3, N_elements)
+            areas = self.mesh.volumes                  # length N_elements
+
+            # Initialize accumulators
+            E_vertices = np.zeros((N_vertices, 3))
+            weights = np.zeros(N_vertices)
+
+            for f in range(N_elements):
+                Ef = E_faces[f, :]   # 3D field on face f
+                Af = areas[f]        # area of face f
+
+                # loop over the 3 vertices of face f
+                for local_idx in range(3):
+                    v = elements[local_idx, f]  # vertex index
+
+                    # accumulate area-weighted field
+                    E_vertices[v, :] += Af * Ef
+                    weights[v]       += Af
+
+            # Avoid divide-by-zero: only vertices with at least one incident face
+            nonzero = weights > 0.0
+            E_vertices[nonzero, :] /= weights[nonzero, np.newaxis]
+
+            # Optionally, store per-vertex electric field (solvent side)
+            self.results["E_vertices"] = E_vertices
+
             self.results["P_normal"] = convert_to_kcalmolA * P_normal
             self.results["f_solv"] = convert_to_kcalmolA * total_force + self.results["f_ib"]
             self.timings["time_calc_solvation_force"] = (
@@ -911,3 +950,137 @@ def get_name_from_pdb(pdb_path):
     pdb_file.close()
 
     return solute_name
+
+def export(self, filename, fmt="vtu", normalize_weights=True):
+    """
+    Export SES + per-vertex electric field + per-vertex potential + OT weights
+    via meshio.
+
+    Parameters
+    ----------
+    filename : str
+        Output path, e.g. "enzyme_ot.vtu" or "enzyme_ot.ply".
+    fmt : {"vtu", "ply", None}
+        File format; if None, inferred from filename extension.
+    normalize_weights : bool
+        If True, vertex_weights are normalized to sum to 1 (for OT).
+    """
+
+    # ---- Basic geometry ----
+    # PBJ: vertices are (3, N_v); meshio expects (N_v, 3)
+    points = self.mesh.vertices.T.copy()              # (N_v, 3)
+    # PBJ: elements are (3, N_f); meshio expects (N_f, 3)
+    faces = self.mesh.elements.T.astype(np.int32)     # (N_f, 3)
+    cells = [("triangle", faces)]
+
+    N_vertices = points.shape[0]
+    N_faces = faces.shape[0]
+
+    # ---- Per-vertex electric field (must already be computed) ----
+    if "E_vertices" not in self.results:
+        raise RuntimeError(
+            "E_vertices not found in self.results. "
+            "Run calculate_solvation_forces (Maxwell tensor branch) "
+            "and vertex averaging first."
+        )
+    E_vertices = self.results["E_vertices"].astype(np.float64)   # (N_v, 3)
+
+    # ---- Per-vertex potential phi ----
+    if "phi" not in self.results:
+        raise RuntimeError(
+            "phi not found in self.results. "
+            "Solve the PB problem before exporting."
+        )
+    # PBJ stores potential DOFs per vertex
+    phi_vertex = np.asarray(self.results["phi"].coefficients, dtype=np.float64)
+    if phi_vertex.shape[0] != N_vertices:
+        raise RuntimeError(
+            f"phi_vertex has length {phi_vertex.shape[0]}, "
+            f"but mesh has {N_vertices} vertices."
+        )
+
+    # ---- Per-face areas ----
+    face_areas = np.asarray(self.mesh.volumes, dtype=np.float64) # (N_f,)
+
+    # ---- Vertex areas (barycentric) & OT weights ----
+    vertex_areas = np.zeros(N_vertices, dtype=np.float64)
+    for f in range(N_faces):
+        Af = face_areas[f]
+        # each face contributes Af/3 to its three vertices
+        for local_idx in range(3):
+            v = faces[f, local_idx]
+            vertex_areas[v] += Af / 3.0
+
+    vertex_weights = vertex_areas.copy()
+    if normalize_weights:
+        total = vertex_weights.sum()
+        if total > 0.0:
+            vertex_weights /= total
+
+    # ---- Select format (infer from extension if fmt is None) ----
+    if fmt is None:
+        fl = filename.lower()
+        if fl.endswith(".vtu"):
+            fmt = "vtu"
+        elif fl.endswith(".ply"):
+            fmt = "ply"
+        else:
+            raise ValueError(
+                "Cannot infer format from filename. "
+                "Use fmt='vtu' or fmt='ply'."
+            )
+
+    # ============================================================
+    # VTU export (ParaView): vector field + scalar potential + weights
+    # ============================================================
+    if fmt.lower() == "vtu":
+        point_data = {
+            "phi": phi_vertex,              # scalar potential on SES
+            "E": E_vertices,                # 3-component solvent-side field
+            "vertex_weight": vertex_weights,
+            "vertex_area": vertex_areas,
+        }
+
+        # Optional: per-face data for diagnostics
+        cell_data = {}
+        if "E_faces" in self.results:
+            E_faces = self.results["E_faces"].astype(np.float64)  # (N_f, 3)
+            cell_data["E_face"] = [E_faces]
+        cell_data["face_area"] = [face_areas]
+
+        mesh = meshio.Mesh(
+            points=points,
+            cells=cells,
+            point_data=point_data,
+            cell_data=cell_data,
+        )
+        meshio.write(filename, mesh)
+        return
+
+    # ============================================================
+    # PLY export (MeshLab): per-vertex scalars Ex,Ey,Ez,E_mag,phi,weight
+    # ============================================================
+    if fmt.lower() == "ply":
+        Ex = E_vertices[:, 0]
+        Ey = E_vertices[:, 1]
+        Ez = E_vertices[:, 2]
+        E_mag = np.linalg.norm(E_vertices, axis=1)
+
+        point_data = {
+            "phi": phi_vertex.astype(np.float64),
+            "Ex": Ex.astype(np.float64),
+            "Ey": Ey.astype(np.float64),
+            "Ez": Ez.astype(np.float64),
+            "E_mag": E_mag.astype(np.float64),
+            "weight": vertex_weights.astype(np.float64),
+        }
+
+        mesh = meshio.Mesh(
+            points=points,
+            cells=cells,
+            point_data=point_data,
+        )
+        meshio.write(filename, mesh)
+        return
+
+    raise ValueError(f"Unsupported format '{fmt}'. Use 'vtu' or 'ply'.")

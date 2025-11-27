@@ -1,8 +1,8 @@
 import numpy as np
-import bempp.api
+import bempp_cl.api
 import os
 import shutil
-from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+from bempp_cl.api.operators.boundary import sparse, laplace, modified_helmholtz
 import pbj
 from .common import calculate_potential_stern
 
@@ -181,7 +181,7 @@ def lhs(self):
         assembler=operator_assembler,
     )
 
-    A = bempp.api.BlockedOperator(4, 4)
+    A = bempp_cl.api.BlockedOperator(4, 4)
 
     A[0, 0] = 0.5 * identity_diel + dlp_in_diel
     A[0, 1] = -slp_in_diel
@@ -212,7 +212,7 @@ def rhs(self):
 
     if rhs_constructor == "fmm":
 
-        @bempp.api.callable(vectorized=True)
+        @bempp_cl.api.callable(vectorized=True)
         def fmm_green_func(x, n, domain_index, result):
             import exafmm.laplace as _laplace
 
@@ -224,7 +224,7 @@ def rhs(self):
             os.remove(".rhs.tmp")
             result[:] = values[:, 0] / ep_in
 
-        # @bempp.api.real_callable
+        # @bempp_cl.api.real_callable
         # def zero(x, n, domain_index, result):
         #     result[0] = 0
 
@@ -232,20 +232,20 @@ def rhs(self):
         coefs_dirichl_stern = np.zeros(dirichl_space_stern.global_dof_count)
         coefs_neumann_stern = np.zeros(neumann_space_stern.global_dof_count)
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space_diel, fun=fmm_green_func)
-        rhs_2 = bempp.api.GridFunction(
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space_diel, fun=fmm_green_func)
+        rhs_2 = bempp_cl.api.GridFunction(
             neumann_space_diel, coefficients=coefs_neumann_diel
         )
-        rhs_3 = bempp.api.GridFunction(
+        rhs_3 = bempp_cl.api.GridFunction(
             dirichl_space_stern, coefficients=coefs_dirichl_stern
         )
-        rhs_4 = bempp.api.GridFunction(
+        rhs_4 = bempp_cl.api.GridFunction(
             neumann_space_stern, coefficients=coefs_neumann_stern
         )
 
     else:
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def charges_fun(x, n, domain_index, result):
             nrm = np.sqrt(
                 (x[0] - x_q[:, 0]) ** 2
@@ -255,14 +255,14 @@ def rhs(self):
             aux = np.sum(q / nrm)
             result[0] = aux / (4 * np.pi * ep_in)
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def zero(x, n, domain_index, result):
             result[0] = 0
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space_diel, fun=charges_fun)
-        rhs_2 = bempp.api.GridFunction(neumann_space_diel, fun=zero)
-        rhs_3 = bempp.api.GridFunction(dirichl_space_stern, fun=zero)
-        rhs_4 = bempp.api.GridFunction(neumann_space_stern, fun=zero)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space_diel, fun=charges_fun)
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space_diel, fun=zero)
+        rhs_3 = bempp_cl.api.GridFunction(dirichl_space_stern, fun=zero)
+        rhs_4 = bempp_cl.api.GridFunction(neumann_space_stern, fun=zero)
 
     self.rhs["rhs_1"], self.rhs["rhs_2"], self.rhs["rhs_3"], self.rhs["rhs_4"] = (
         rhs_1,
@@ -500,15 +500,15 @@ def lhs_inter_solute_interactions(self, solute_target, solute_source):
     
     if solute_target.stern_object is None:
         
-        zero_00 = bempp.api.assembly.boundary_operator.ZeroBoundaryOperator(
+        zero_00 = bempp_cl.api.assembly.boundary_operator.ZeroBoundaryOperator(
             dirichl_space_source, dirichl_space_target, dirichl_space_target
         )
     
-        zero_01 = bempp.api.assembly.boundary_operator.ZeroBoundaryOperator(
+        zero_01 = bempp_cl.api.assembly.boundary_operator.ZeroBoundaryOperator(
             neumann_space_source, neumann_space_target, neumann_space_target
         )
         
-        A_inter = bempp.api.BlockedOperator(2, 2)
+        A_inter = bempp_cl.api.BlockedOperator(2, 2)
     
         A_inter[0, 0] = zero_00
         A_inter[0, 1] = zero_01 
@@ -516,20 +516,20 @@ def lhs_inter_solute_interactions(self, solute_target, solute_source):
         A_inter[1, 1] = e_hat_stern * slp
         
     else:
-        from bempp.api.assembly.boundary_operator import ZeroBoundaryOperator as zero_op
+        from bempp_cl.api.assembly.boundary_operator import ZeroBoundaryOperator as zero_op
         
-        A_inter = bempp.api.BlockedOperator(4, 4)
+        A_inter = bempp_cl.api.BlockedOperator(4, 4)
         
         target_diel  = solute_target.dirichl_space
         target_stern = solute_target.stern_object.dirichl_space
         source_diel  = solute_source.dirichl_space
         source_stern = solute_source.stern_object.dirichl_space
    
-        zero_00 = bempp.api.assembly.boundary_operator.ZeroBoundaryOperator(
+        zero_00 = bempp_cl.api.assembly.boundary_operator.ZeroBoundaryOperator(
             dirichl_space_source, dirichl_space_target, dirichl_space_target
         )
     
-        zero_01 = bempp.api.assembly.boundary_operator.ZeroBoundaryOperator(
+        zero_01 = bempp_cl.api.assembly.boundary_operator.ZeroBoundaryOperator(
             neumann_space_source, neumann_space_target, neumann_space_target
         )
         

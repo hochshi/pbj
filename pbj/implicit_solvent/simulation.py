@@ -1,4 +1,4 @@
-import bempp.api
+import bempp_cl.api
 import time
 import trimesh
 
@@ -157,7 +157,7 @@ class Simulation:
         from scipy.sparse.linalg import aslinearoperator
         
         solute_count = len(self.solutes)
-        #A = bempp.api.BlockedDiscreteOperator(solute_count * 2, solute_count * 2)
+        #A = bempp_cl.api.BlockedDiscreteOperator(solute_count * 2, solute_count * 2)
         
         A = np.empty((solute_count , solute_count), dtype="O")
         
@@ -283,7 +283,7 @@ class Simulation:
                     
 
         #self.matrices["A"] = A
-        A_discrete = bempp.api.assembly.blocked_operator.BlockedDiscreteOperator(A)
+        A_discrete = bempp_cl.api.assembly.blocked_operator.BlockedDiscreteOperator(A)
         self.matrices["A_discrete"] = A_discrete
         self.rhs["rhs_discrete"] = rhs_final_discrete
         
@@ -418,14 +418,14 @@ class Simulation:
             
             
             if self.kappa < 1e-12:
-                V = bempp.api.operators.potential.laplace.single_layer \
+                V = bempp_cl.api.operators.potential.laplace.single_layer \
                                 (solute.neumann_space, eval_points[:,points_solvent])
-                K = bempp.api.operators.potential.laplace.double_layer \
+                K = bempp_cl.api.operators.potential.laplace.double_layer \
                                 (solute.dirichl_space, eval_points[:,points_solvent])
             else:
-                V = bempp.api.operators.potential.modified_helmholtz.single_layer \
+                V = bempp_cl.api.operators.potential.modified_helmholtz.single_layer \
                                 (solute.neumann_space, eval_points[:,points_solvent], self.kappa)
-                K = bempp.api.operators.potential.modified_helmholtz.double_layer \
+                K = bempp_cl.api.operators.potential.modified_helmholtz.double_layer \
                                 (solute.dirichl_space, eval_points[:,points_solvent], self.kappa) 
 
             phi_aux = K*solute.results["phi"] \
@@ -492,9 +492,9 @@ class Simulation:
             
             points_solute[points_solute_local] = index
             
-            slp = bempp.api.operators.potential.laplace.single_layer \
+            slp = bempp_cl.api.operators.potential.laplace.single_layer \
                             (solute.neumann_space, eval_points[:,points_solute_local])
-            dlp = bempp.api.operators.potential.laplace.double_layer \
+            dlp = bempp_cl.api.operators.potential.laplace.double_layer \
                             (solute.dirichl_space, eval_points[:,points_solute_local])
             
             
@@ -644,9 +644,9 @@ class Simulation:
                 phi_solvent = np.zeros(len(outside))
                 for index_source, solute_source in enumerate(self.solutes):
                     
-                    V = pbj.implicit_solvent.simulation.bempp.api.operators.potential.modified_helmholtz.single_layer \
+                    V = pbj.implicit_solvent.simulation.bempp_cl.api.operators.potential.modified_helmholtz.single_layer \
                                   (solute_source.neumann_space, pos_mesh_outside, self.kappa, assembler = self.operator_assembler)
-                    K = pbj.implicit_solvent.simulation.bempp.api.operators.potential.modified_helmholtz.double_layer \
+                    K = pbj.implicit_solvent.simulation.bempp_cl.api.operators.potential.modified_helmholtz.double_layer \
                                   (solute_source.dirichl_space, pos_mesh_outside, self.kappa, assembler = self.operator_assembler)
 
                     phi_aux = K*solute_source.results["phi"] \
@@ -662,7 +662,7 @@ class Simulation:
                 G2_over_G2 = np.sum(np.exp(-qe*phi_V/kT)/dist**6)/np.sum(np.exp(qe*phi_V/kT)/dist**6)
 
                 phi_ens[i] = -kT/(2*qe) * np.log(G2_over_G2) * 1000 # in mV
-                bempp.api.log("PBJ: ENS calculation " + str(atom_name) + " atom %i, phi_ens = %1.3f mV"%(i,phi_ens[i]))
+                bempp_cl.api.log("PBJ: ENS calculation " + str(atom_name) + " atom %i, phi_ens = %1.3f mV"%(i,phi_ens[i]))
             
             solute.results["phi_ens"] = phi_ens
 

@@ -1,7 +1,7 @@
 import numpy as np
-import bempp.api
+import bempp_cl.api
 import os
-from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+from bempp_cl.api.operators.boundary import sparse, laplace, modified_helmholtz
 from .common import calculate_potential_one_surface
 
 
@@ -51,7 +51,7 @@ def lhs(self):
 
     ep = ep_ex / ep_in
 
-    A = bempp.api.BlockedOperator(2, 2)
+    A = bempp_cl.api.BlockedOperator(2, 2)
     A[0, 0] = (0.5 * (1 + (1.0 / ep))) * phi_identity - dlp_ex + (1.0 / ep) * dlp_in
     A[0, 1] = slp_ex - slp_in
     A[1, 0] = (1.0 / ep) * hlp_ex - (1.0 / ep) * hlp_in
@@ -70,7 +70,7 @@ def rhs(self):
 
     if rhs_constructor == "fmm":
 
-        @bempp.api.callable(vectorized=True)
+        @bempp_cl.api.callable(vectorized=True)
         def rhs1_fun(x, n, domain_index, result):
             import exafmm.laplace as _laplace
 
@@ -82,7 +82,7 @@ def rhs(self):
             os.remove(".rhs.tmp")
             result[:] = values[:, 0] / ep_ex
 
-        @bempp.api.callable(vectorized=True)
+        @bempp_cl.api.callable(vectorized=True)
         def rhs2_fun(x, n, domain_index, result):
             import exafmm.laplace as _laplace
 
@@ -94,12 +94,12 @@ def rhs(self):
             os.remove(".rhs.tmp")
             result[:] = np.sum(values[:, 1:] * n.T, axis=1) / ep_ex
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=rhs1_fun)
-        rhs_2 = bempp.api.GridFunction(neumann_space, fun=rhs2_fun)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=rhs1_fun)
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space, fun=rhs2_fun)
 
     else:
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def d_green_func(x, n, domain_index, result):
             nrm = np.sqrt(
                 (x[0] - x_q[:, 0]) ** 2
@@ -109,7 +109,7 @@ def rhs(self):
             const = -1.0 / (4.0 * np.pi * ep_ex)
             result[:] = const * np.sum(q * np.dot(x - x_q, n) / (nrm**3))
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def green_func(x, n, domain_index, result):
             nrm = np.sqrt(
                 (x[0] - x_q[:, 0]) ** 2
@@ -118,8 +118,8 @@ def rhs(self):
             )
             result[:] = np.sum(q / nrm) / (4.0 * np.pi * ep_ex)
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
-        rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=green_func)
+        rhs_2 = bempp_cl.api.GridFunction(dirichl_space, fun=d_green_func)
 
     self.rhs["rhs_1"], self.rhs["rhs_2"] = rhs_1, rhs_2
 
@@ -129,8 +129,8 @@ def mass_matrix_preconditioner(solute):
 
     # Option A:
     """
-    from bempp.api.utils.helpers import get_inverse_mass_matrix
-    from bempp.api.assembly.blocked_operator import BlockedDiscreteOperator
+    from bempp_cl.api.utils.helpers import get_inverse_mass_matrix
+    from bempp_cl.api.assembly.blocked_operator import BlockedDiscreteOperator
 
 
     matrix = solute.matrices["A"]

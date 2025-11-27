@@ -1,7 +1,7 @@
 import numpy as np
-import bempp.api
+import bempp_cl.api
 import os
-from bempp.api.operators.boundary import laplace, modified_helmholtz
+from bempp_cl.api.operators.boundary import laplace, modified_helmholtz
 from .common import calculate_potential_one_surface
 
 
@@ -48,19 +48,19 @@ def lhs(self):
 
     ep = ep_ex / ep_in
 
-    A = bempp.api.BlockedOperator(2, 2)
+    A = bempp_cl.api.BlockedOperator(2, 2)
     A[0, 0] = (-1.0 * dlp_in) - dlp_ex
     A[0, 1] = slp_in + ((1.0 / ep) * slp_ex)
     A[1, 0] = hlp_in + (ep * hlp_ex)
     A[1, 1] = adlp_in + adlp_ex
 
-    calderon_int = bempp.api.BlockedOperator(2, 2)
+    calderon_int = bempp_cl.api.BlockedOperator(2, 2)
     calderon_int[0, 0] = -1.0 * dlp_in
     calderon_int[0, 1] = slp_in
     calderon_int[1, 0] = hlp_in
     calderon_int[1, 1] = adlp_in
 
-    calderon_ext_scal = bempp.api.BlockedOperator(2, 2)
+    calderon_ext_scal = bempp_cl.api.BlockedOperator(2, 2)
     calderon_ext_scal[0, 0] = -1.0 * dlp_ex
     calderon_ext_scal[0, 1] = (1.0 / ep) * slp_ex
     calderon_ext_scal[1, 0] = ep * hlp_ex
@@ -109,7 +109,7 @@ def calderon_A_only(solute):
 
     ep = ep_ex / ep_in
 
-    A = bempp.api.BlockedOperator(2, 2)
+    A = bempp_cl.api.BlockedOperator(2, 2)
     A[0, 0] = (-1.0 * dlp_in) - dlp_ex
     A[0, 1] = slp_in + ((1.0 / ep) * slp_ex)
     A[1, 0] = hlp_in + (ep * hlp_ex)
@@ -136,7 +136,7 @@ def calderon_int_only(solute):
         neumann_space, neumann_space, neumann_space, assembler=operator_assembler
     )
 
-    calderon_int = bempp.api.BlockedOperator(2, 2)
+    calderon_int = bempp_cl.api.BlockedOperator(2, 2)
     calderon_int[0, 0] = -1.0 * dlp_in
     calderon_int[0, 1] = slp_in
     calderon_int[1, 0] = hlp_in
@@ -155,7 +155,7 @@ def rhs(self):
 
     if rhs_constructor == "fmm":
 
-        @bempp.api.callable(vectorized=True)
+        @bempp_cl.api.callable(vectorized=True)
         def rhs1_fun(x, n, domain_index, result):
             import exafmm.laplace as _laplace
 
@@ -167,7 +167,7 @@ def rhs(self):
             os.remove(".rhs.tmp")
             result[:] = (-1.0) * values[:, 0] / ep_in
 
-        @bempp.api.callable(vectorized=True)
+        @bempp_cl.api.callable(vectorized=True)
         def rhs2_fun(x, n, domain_index, result):
             import exafmm.laplace as _laplace
 
@@ -179,12 +179,12 @@ def rhs(self):
             os.remove(".rhs.tmp")
             result[:] = (-1.0) * np.sum(values[:, 1:] * n.T, axis=1) / ep_in
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=rhs1_fun)
-        rhs_2 = bempp.api.GridFunction(neumann_space, fun=rhs2_fun)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=rhs1_fun)
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space, fun=rhs2_fun)
 
     else:
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def d_green_func(x, n, domain_index, result):
             nrm = np.sqrt(
                 (x[0] - x_q[:, 0]) ** 2
@@ -194,7 +194,7 @@ def rhs(self):
             const = -1.0 / (4.0 * np.pi * ep_in)
             result[:] = -1.0 * const * np.sum(q * np.dot(x - x_q, n) / (nrm**3))
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def green_func(x, n, domain_index, result):
             nrm = np.sqrt(
                 (x[0] - x_q[:, 0]) ** 2
@@ -203,8 +203,8 @@ def rhs(self):
             )
             result[:] = -1.0 * np.sum(q / nrm) / (4.0 * np.pi * ep_in)
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=green_func)
-        rhs_2 = bempp.api.GridFunction(dirichl_space, fun=d_green_func)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=green_func)
+        rhs_2 = bempp_cl.api.GridFunction(dirichl_space, fun=d_green_func)
 
     self.rhs["rhs_1"], self.rhs["rhs_2"] = rhs_1, rhs_2
 
@@ -257,8 +257,8 @@ def apply_calderon_precondtioning(solute):
 
 
 def interior_mass_matrix(matrix, ep_ex, ep_in):
-    from bempp.api.utils.helpers import get_inverse_mass_matrix
-    from bempp.api.assembly.blocked_operator import BlockedDiscreteOperator
+    from bempp_cl.api.utils.helpers import get_inverse_mass_matrix
+    from bempp_cl.api.assembly.blocked_operator import BlockedDiscreteOperator
 
     nrows = len(matrix.range_spaces)
     range_ops = np.empty((nrows, nrows), dtype="O")
@@ -276,8 +276,8 @@ def interior_mass_matrix(matrix, ep_ex, ep_in):
 
 
 def exterior_mass_matrix(matrix, ep_ex, ep_in):
-    from bempp.api.utils.helpers import get_inverse_mass_matrix
-    from bempp.api.assembly.blocked_operator import BlockedDiscreteOperator
+    from bempp_cl.api.utils.helpers import get_inverse_mass_matrix
+    from bempp_cl.api.assembly.blocked_operator import BlockedDiscreteOperator
 
     nrows = len(matrix.range_spaces)
     range_ops = np.empty((nrows, nrows), dtype="O")
@@ -353,16 +353,16 @@ def calderon_squared_lowered_parameters_preconditioner(solute):
     solute.matrices["A"].strong_form()
 
     # Save current set parameters to be reset later
-    expansion_order_main = bempp.api.GLOBAL_PARAMETERS.fmm.expansion_order
-    ncrit_main = bempp.api.GLOBAL_PARAMETERS.fmm.ncrit
-    reg_quadrature_points_main = bempp.api.GLOBAL_PARAMETERS.quadrature.regular
-    sing_quadrature_points_main = bempp.api.GLOBAL_PARAMETERS.quadrature.singular
+    expansion_order_main = bempp_cl.api.GLOBAL_PARAMETERS.fmm.expansion_order
+    ncrit_main = bempp_cl.api.GLOBAL_PARAMETERS.fmm.ncrit
+    reg_quadrature_points_main = bempp_cl.api.GLOBAL_PARAMETERS.quadrature.regular
+    sing_quadrature_points_main = bempp_cl.api.GLOBAL_PARAMETERS.quadrature.singular
 
     # Change parameters
-    bempp.api.GLOBAL_PARAMETERS.fmm.expansion_order = 2
-    bempp.api.GLOBAL_PARAMETERS.fmm.ncrit = 50
-    bempp.api.GLOBAL_PARAMETERS.quadrature.regular = 1
-    bempp.api.GLOBAL_PARAMETERS.quadrature.singular = 3
+    bempp_cl.api.GLOBAL_PARAMETERS.fmm.expansion_order = 2
+    bempp_cl.api.GLOBAL_PARAMETERS.fmm.ncrit = 50
+    bempp_cl.api.GLOBAL_PARAMETERS.quadrature.regular = 1
+    bempp_cl.api.GLOBAL_PARAMETERS.quadrature.singular = 3
 
     solute.matrices["preconditioning_matrix"] = calderon_A_only(solute)
 
@@ -372,10 +372,10 @@ def calderon_squared_lowered_parameters_preconditioner(solute):
         * solute.matrices["A"].strong_form()
     )
 
-    bempp.api.GLOBAL_PARAMETERS.fmm.expansion_order = expansion_order_main
-    bempp.api.GLOBAL_PARAMETERS.fmm.ncrit = ncrit_main
-    bempp.api.GLOBAL_PARAMETERS.quadrature.regular = reg_quadrature_points_main
-    bempp.api.GLOBAL_PARAMETERS.quadrature.singular = sing_quadrature_points_main
+    bempp_cl.api.GLOBAL_PARAMETERS.fmm.expansion_order = expansion_order_main
+    bempp_cl.api.GLOBAL_PARAMETERS.fmm.ncrit = ncrit_main
+    bempp_cl.api.GLOBAL_PARAMETERS.quadrature.regular = reg_quadrature_points_main
+    bempp_cl.api.GLOBAL_PARAMETERS.quadrature.singular = sing_quadrature_points_main
 
     solute.rhs["rhs_final"] = [solute.rhs["rhs_1"], solute.rhs["rhs_2"]]
     solute.rhs["rhs_discrete"] = solute.matrices[
@@ -394,16 +394,16 @@ def calderon_interior_operator_with_scaled_mass_matrix_lowered_parameters_precon
     solute.matrices["A"].strong_form()
 
     # Save current set parameters to be reset later
-    expansion_order_main = bempp.api.GLOBAL_PARAMETERS.fmm.expansion_order
-    ncrit_main = bempp.api.GLOBAL_PARAMETERS.fmm.ncrit
-    reg_quadrature_points_main = bempp.api.GLOBAL_PARAMETERS.quadrature.regular
-    sing_quadrature_points_main = bempp.api.GLOBAL_PARAMETERS.quadrature.singular
+    expansion_order_main = bempp_cl.api.GLOBAL_PARAMETERS.fmm.expansion_order
+    ncrit_main = bempp_cl.api.GLOBAL_PARAMETERS.fmm.ncrit
+    reg_quadrature_points_main = bempp_cl.api.GLOBAL_PARAMETERS.quadrature.regular
+    sing_quadrature_points_main = bempp_cl.api.GLOBAL_PARAMETERS.quadrature.singular
 
     # Change parameters
-    bempp.api.GLOBAL_PARAMETERS.fmm.expansion_order = 2
-    bempp.api.GLOBAL_PARAMETERS.fmm.ncrit = 50
-    bempp.api.GLOBAL_PARAMETERS.quadrature.regular = 1
-    bempp.api.GLOBAL_PARAMETERS.quadrature.singular = 3
+    bempp_cl.api.GLOBAL_PARAMETERS.fmm.expansion_order = 2
+    bempp_cl.api.GLOBAL_PARAMETERS.fmm.ncrit = 50
+    bempp_cl.api.GLOBAL_PARAMETERS.quadrature.regular = 1
+    bempp_cl.api.GLOBAL_PARAMETERS.quadrature.singular = 3
 
     preconditioner = calderon_int_only(solute)
     solute.matrices["preconditioning_matrix"] = (
@@ -414,10 +414,10 @@ def calderon_interior_operator_with_scaled_mass_matrix_lowered_parameters_precon
         solute.matrices["preconditioning_matrix"] * solute.matrices["A"].strong_form()
     )
 
-    bempp.api.GLOBAL_PARAMETERS.fmm.expansion_order = expansion_order_main
-    bempp.api.GLOBAL_PARAMETERS.fmm.ncrit = ncrit_main
-    bempp.api.GLOBAL_PARAMETERS.quadrature.regular = reg_quadrature_points_main
-    bempp.api.GLOBAL_PARAMETERS.quadrature.singular = sing_quadrature_points_main
+    bempp_cl.api.GLOBAL_PARAMETERS.fmm.expansion_order = expansion_order_main
+    bempp_cl.api.GLOBAL_PARAMETERS.fmm.ncrit = ncrit_main
+    bempp_cl.api.GLOBAL_PARAMETERS.quadrature.regular = reg_quadrature_points_main
+    bempp_cl.api.GLOBAL_PARAMETERS.quadrature.singular = sing_quadrature_points_main
 
     solute.rhs["rhs_final"] = [solute.rhs["rhs_1"], solute.rhs["rhs_2"]]
     solute.rhs["rhs_discrete"] = solute.matrices[

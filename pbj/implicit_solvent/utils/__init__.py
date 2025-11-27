@@ -3,7 +3,7 @@ from .analytical import *
 
 def solver(A, rhs, tolerance, restart_value, max_iterations, initial_guess=None, precond=None):
     from scipy.sparse.linalg import gmres
-    from bempp.api.linalg.iterative_solvers import IterationCounter
+    from bempp_cl.api.linalg.iterative_solvers import IterationCounter
 
     callback = IterationCounter(True)
 
@@ -44,7 +44,7 @@ def matrix_to_discrete_form(matrix, discrete_form_type):
 
 
 def rhs_to_discrete_form(rhs_list, discrete_form_type, A):
-    from bempp.api.assembly.blocked_operator import (
+    from bempp_cl.api.assembly.blocked_operator import (
         coefficients_from_grid_functions_list,
         projections_from_grid_functions_list,
     )

@@ -1,7 +1,7 @@
 import numpy as np
-import bempp.api
-from bempp.api.operators.boundary import sparse, laplace
-from bempp.api.linalg.iterative_solvers import IterationCounter
+import bempp_cl.api
+from bempp_cl.api.operators.boundary import sparse, laplace
+from bempp_cl.api.linalg.iterative_solvers import IterationCounter
 from .common import calculate_potential_stern
 import pbj
 import time
@@ -57,14 +57,14 @@ def create_ehat_diel(self):
     ep_stern = getattr(self, "ep_stern", self.ep_ex)
     self.ep_stern = ep_stern
 
-    dlp_adj_in = bempp.api.operators.boundary.laplace.adjoint_double_layer(
+    dlp_adj_in = bempp_cl.api.operators.boundary.laplace.adjoint_double_layer(
         dirichl_space_diel,
         dirichl_space_diel,
         neumann_space_diel,
         assembler=operator_assembler,
     )
 
-    @bempp.api.real_callable
+    @bempp_cl.api.real_callable
     def en_function(x, n, domain_index, result):
         nrm = np.sqrt(
             (x[0] - x_q[:, 0]) ** 2 + (x[1] - x_q[:, 1]) ** 2 + (x[2] - x_q[:, 2]) ** 2
@@ -73,7 +73,7 @@ def create_ehat_diel(self):
             np.dot(n, (np.transpose(x - x_q) / (4 * np.pi * nrm**3)) * (q))
         )
 
-    electricfield = bempp.api.GridFunction(dirichl_space_diel, fun=en_function)
+    electricfield = bempp_cl.api.GridFunction(dirichl_space_diel, fun=en_function)
 
     Ksigma = dlp_adj_in * self.slic_sigma
     en = electricfield - Ksigma
@@ -81,8 +81,8 @@ def create_ehat_diel(self):
     h = alpha * np.tanh(beta * en.coefficients - gamma) + mu
     f = ep_in / (ep_stern - ep_in) - h
     f_div = f / (1 + f)
-    f_fun = bempp.api.GridFunction(neumann_space_diel, coefficients=f_div)
-    self.slic_e_hat_diel = bempp.api.assembly.boundary_operator.MultiplicationOperator(
+    f_fun = bempp_cl.api.GridFunction(neumann_space_diel, coefficients=f_div)
+    self.slic_e_hat_diel = bempp_cl.api.assembly.boundary_operator.MultiplicationOperator(
         f_fun, neumann_space_diel, neumann_space_diel, neumann_space_diel
     )
 
@@ -112,7 +112,7 @@ def solve_sigma(self):
         - (-0.5 * identity_diel + dlp_in_diel) * self.results["phi"]
     )
     """
-    sigma, _ = bempp.api.linalg.gmres(
+    sigma, _ = bempp_cl.api.linalg.gmres(
         slp_in_diel,
         rhs_sigma,
         tol=self.gmres_tolerance,
@@ -132,7 +132,7 @@ def solve_sigma(self):
     
     callback = IterationCounter(False)
 
-    bempp.api.log("PBJ: Starting GMRES iterations for sigma (SLIC)")
+    bempp_cl.api.log("PBJ: Starting GMRES iterations for sigma (SLIC)")
 
     start_time = time.time()
     x, info = scipy.sparse.linalg.gmres(
@@ -140,12 +140,12 @@ def solve_sigma(self):
         tol=self.gmres_tolerance, maxiter=self.gmres_max_iterations, callback=callback
     )
     end_time = time.time()
-    bempp.api.log(
+    bempp_cl.api.log(
         "GMRES finished in %i iterations and took %.2E sec."
         % (callback.count, end_time - start_time)
     )
     
-    sigma = bempp.api.GridFunction(
+    sigma = bempp_cl.api.GridFunction(
         slp_in_diel.domain, coefficients=x.ravel()
     )
 
@@ -168,7 +168,7 @@ def calculate_potential(simulation, rerun_all, rerun_rhs):
 
         max_iterations = simulation.slic_max_iterations
 
-        solute.slic_sigma = bempp.api.GridFunction(
+        solute.slic_sigma = bempp_cl.api.GridFunction(
             dirichl_space_diel, coefficients=np.zeros(dirichl_space_diel.global_dof_count)
         )
         
@@ -182,7 +182,7 @@ def calculate_potential(simulation, rerun_all, rerun_rhs):
     time_matrix_assembly = []
     time_preconditioning = []
 
-    bempp.api.log("PBJ: Starting self-consistent SLIC iterations")
+    bempp_cl.api.log("PBJ: Starting self-consistent SLIC iterations")
     # iteration 0
     calculate_potential_stern(simulation)
     
@@ -230,7 +230,7 @@ def calculate_potential(simulation, rerun_all, rerun_rhs):
             
         for index, solute in enumerate(simulation.solutes):
 
-            A_solute = bempp.api.BlockedOperator(4, 4)
+            A_solute = bempp_cl.api.BlockedOperator(4, 4)
            
             A_solute[0,0] = solute.matrices["A"][0,0]
             A_solute[0,1] = solute.matrices["A"][0,1]
@@ -258,7 +258,7 @@ def calculate_potential(simulation, rerun_all, rerun_rhs):
             for index_j, solute_j in enumerate(simulation.solutes):
                 
                 if index_j != index:
-                    A_inter = bempp.api.BlockedOperator(4, 4)
+                    A_inter = bempp_cl.api.BlockedOperator(4, 4)
                     
                     if index>index_j:
                         index_array = index_j
@@ -286,7 +286,7 @@ def calculate_potential(simulation, rerun_all, rerun_rhs):
                     
                     A[index,index_j] = A_inter.weak_form()
                 
-        A_discrete = bempp.api.assembly.blocked_operator.BlockedDiscreteOperator(A)
+        A_discrete = bempp_cl.api.assembly.blocked_operator.BlockedDiscreteOperator(A)
         simulation.matrices["A_discrete"] = A_discrete
             
         #update_and_assemble_linear_system_slic(simulation, matrix_cache)
@@ -305,7 +305,7 @@ def calculate_potential(simulation, rerun_all, rerun_rhs):
         phi_old = phi_new.copy()
         
 
-        bempp.api.log("PBJ: Self-consistent iteration %i, residual %e"%(it,phi_L2error))
+        bempp_cl.api.log("PBJ: Self-consistent iteration %i, residual %e"%(it,phi_L2error))
         
         it += 1
 
@@ -346,7 +346,7 @@ def calculate_potential_slic(simulation):
         initial_guess[i:i+N_neumann] = solute.results["d_phi_stern"].coefficients
         i += N_neumann
     
-    bempp.api.log("PBJ: Start GMRES iterations for surface potential")
+    bempp_cl.api.log("PBJ: Start GMRES iterations for surface potential")
     # Use GMRES to solve the system of equations
     if "preconditioning_matrix_gmres" in simulation.matrices:
         gmres_start_time = time.time()
@@ -373,7 +373,7 @@ def calculate_potential_slic(simulation):
 
     simulation.timings["time_gmres"] = time.time() - gmres_start_time
 
-    from bempp.api.assembly.blocked_operator import (
+    from bempp_cl.api.assembly.blocked_operator import (
         grid_function_list_from_coefficients,
     )          
 
@@ -439,5 +439,5 @@ def update_and_assemble_linear_system_slic(simulation, matrix_cache):
                 A[i,j] = solute.matrices["A_inter"][index_array]
 
     #simulation.matrices["A"] = A
-    A_discrete = bempp.api.assembly.blocked_operator.BlockedDiscreteOperator(A)
+    A_discrete = bempp_cl.api.assembly.blocked_operator.BlockedDiscreteOperator(A)
     simulation.matrices["A_discrete"] = A_discrete

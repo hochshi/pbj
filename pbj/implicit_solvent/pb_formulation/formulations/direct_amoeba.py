@@ -1,7 +1,7 @@
 import numpy as np
-import bempp.api
+import bempp_cl.api
 import os
-from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+from bempp_cl.api.operators.boundary import sparse, laplace, modified_helmholtz
 from numba import jit
 import time
 import pbj
@@ -35,7 +35,7 @@ def rhs(self):
 
     if rhs_constructor == "fmm":
             
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def multipolar_charges_fun(x, n, i, result): # not using fmm
             T2 = np.zeros((len(x_q),3,3))
             phi = 0
@@ -50,18 +50,18 @@ def rhs(self):
             # only computes permanent multipole. Having a initial induced component is to be implemented
 
             
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=multipolar_charges_fun)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=multipolar_charges_fun)
 
         coefs = np.zeros(neumann_space.global_dof_count)
-        rhs_2 = bempp.api.GridFunction(neumann_space, coefficients=coefs)
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space, coefficients=coefs)
 
     else:
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def zero(x, n, domain_index, result):
             result[0] = 0
                 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def multipolar_charges_fun(x, n, i, result):
 
             dist = np.zeros((3,len(x_q)))
@@ -109,8 +109,8 @@ def rhs(self):
             # only computes permanent multipole. Having a initial induced component is to be implemented
             result[0] = (phi/(4*np.pi*ep_in))
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=multipolar_charges_fun)            
-        rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=multipolar_charges_fun)            
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space, fun=zero)
 
     self.rhs["rhs_1"], self.rhs["rhs_2"] = rhs_1, rhs_2
     self.rhs["rhs_permanent_multipole_1"], self.rhs["rhs_permanent_multipole_2"] = rhs_1, rhs_2
@@ -133,7 +133,7 @@ def rhs_induced_dipole(self):
         coefs = np.zeros(neumann_space.global_dof_count)
 
             
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def dipole_charges_fun(x, n, i, result): # not using fmm
             dist = x - x_q
             norm = np.sqrt(np.sum((dist*dist), axis = 1))
@@ -141,18 +141,18 @@ def rhs_induced_dipole(self):
             phi = np.sum(T1[:]*d_induced[:])
             result[0] = (phi/(4*np.pi*ep_in))
             
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=dipole_charges_fun)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=dipole_charges_fun)
 
-        # rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
-        rhs_2 = bempp.api.GridFunction(neumann_space, coefficients=coefs)
+        # rhs_2 = bempp_cl.api.GridFunction(neumann_space, fun=zero)
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space, coefficients=coefs)
 
     else:
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def zero(x, n, domain_index, result):
             result[0] = 0
                 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def dipole_charges_fun(x, n, i, result):
 
             dist = np.zeros((3,len(x_q)))
@@ -176,9 +176,9 @@ def rhs_induced_dipole(self):
             phi = np.sum(T1.transpose()*d_induced)
             result[0] = (phi/(4*np.pi*ep_in))
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=dipole_charges_fun)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=dipole_charges_fun)
 
-        rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space, fun=zero)
 
     # Add induced dipole component to already existing rhs with permanent multipoles
     self.rhs["rhs_1"] = self.rhs["rhs_permanent_multipole_1"] + rhs_1
@@ -224,7 +224,7 @@ def calculate_potential(simulation, rerun_all=False, rerun_rhs=False):
     simulation.timings["time_gmres"]               = 0.
     simulation.timings["time_assembly_rhs_induced_dipole"] = 0.
 
-    bempp.api.log("PBJ: Starting self-consistent interations for induced dipole in dissolved state")
+    bempp_cl.api.log("PBJ: Starting self-consistent interations for induced dipole in dissolved state")
     while induced_dipole_residual > simulation.induced_dipole_iter_tol:
 
         start_time_rhs = time.time()
@@ -260,7 +260,7 @@ def calculate_potential(simulation, rerun_all=False, rerun_rhs=False):
 
         initial_guess = x.copy()
 
-        from bempp.api.assembly.blocked_operator import (
+        from bempp_cl.api.assembly.blocked_operator import (
             grid_function_list_from_coefficients,
         )
 
@@ -305,7 +305,7 @@ def calculate_potential(simulation, rerun_all=False, rerun_rhs=False):
 
         induced_dipole_residual = np.max(dipole_diff)
 
-        bempp.api.log("PBJ: Dissolved induced dipole iteration %i -> residual: %s"%(
+        bempp_cl.api.log("PBJ: Dissolved induced dipole iteration %i -> residual: %s"%(
                     dipole_iter_count, induced_dipole_residual
                     )
                 )
@@ -357,15 +357,15 @@ def lhs_inter_solute_interactions(simulation, solute_target, solute_source):
         neumann_space_source, neumann_space_target, neumann_space_target, kappa,  assembler=operator_assembler
     )
 
-    zero_00 = bempp.api.assembly.boundary_operator.ZeroBoundaryOperator(
+    zero_00 = bempp_cl.api.assembly.boundary_operator.ZeroBoundaryOperator(
         dirichl_space_source, dirichl_space_target, dirichl_space_target
     )
     
-    zero_01 = bempp.api.assembly.boundary_operator.ZeroBoundaryOperator(
+    zero_01 = bempp_cl.api.assembly.boundary_operator.ZeroBoundaryOperator(
         neumann_space_source, neumann_space_target, neumann_space_target
     )
     
-    A_inter = bempp.api.BlockedOperator(2, 2)
+    A_inter = bempp_cl.api.BlockedOperator(2, 2)
 
     
     A_inter[0, 0] = zero_00
@@ -401,7 +401,7 @@ def calculate_solvation_energy_polarizable(solute):
     solution_dirichl = solute.results["phi"]
     solution_neumann = solute.results["d_phi"]
 
-    from bempp.api.operators.potential.laplace import single_layer, double_layer
+    from bempp_cl.api.operators.potential.laplace import single_layer, double_layer
 
     slp_q = single_layer(solute.neumann_space, solute.x_q.transpose())
     dlp_q = double_layer(solute.dirichl_space, solute.x_q.transpose())
@@ -565,7 +565,7 @@ def calculate_induced_dipole_vacuum(solute):
     induced_dipole_residual = 1.
     dipole_iter_count_vacuum = 1
 
-    bempp.api.log("PBJ: Starting self-consistent interations for induced dipole in vacuum state")
+    bempp_cl.api.log("PBJ: Starting self-consistent interations for induced dipole in vacuum state")
 
     while induced_dipole_residual > solute.induced_dipole_iter_tol:
 
@@ -595,7 +595,7 @@ def calculate_induced_dipole_vacuum(solute):
                         )
                     )
 
-        bempp.api.log("PBJ: Vacuum induced dipole iteration %i -> residual: %s"%(
+        bempp_cl.api.log("PBJ: Vacuum induced dipole iteration %i -> residual: %s"%(
                     dipole_iter_count_vacuum, induced_dipole_residual
                     )
                 )

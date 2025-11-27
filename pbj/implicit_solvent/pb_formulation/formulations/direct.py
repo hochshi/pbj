@@ -1,7 +1,7 @@
 import numpy as np
-import bempp.api
+import bempp_cl.api
 import os
-from bempp.api.operators.boundary import sparse, laplace, modified_helmholtz
+from bempp_cl.api.operators.boundary import sparse, laplace, modified_helmholtz
 from .common import calculate_potential_one_surface
 
 invert_potential = False
@@ -33,7 +33,7 @@ def lhs(self):
         dirichl_space, dirichl_space, dirichl_space, kappa, assembler=operator_assembler
     )
 
-    A = bempp.api.BlockedOperator(2, 2)
+    A = bempp_cl.api.BlockedOperator(2, 2)
 
     A[0, 0] = 0.5 * identity + dlp_in
     A[0, 1] = -slp_in
@@ -55,7 +55,7 @@ def rhs(self):
 
     if rhs_constructor == "fmm":
 
-        @bempp.api.callable(vectorized=True)
+        @bempp_cl.api.callable(vectorized=True)
         def fmm_green_func(x, n, domain_index, result):
             import exafmm.laplace as _laplace
 
@@ -68,23 +68,23 @@ def rhs(self):
             result[:] = values[:, 0] / ep_in
 
 
-        # @bempp.api.real_callable
+        # @bempp_cl.api.real_callable
         # def zero(x, n, domain_index, result):
         #     result[0] = 0
 
         coefs = np.zeros(neumann_space.global_dof_count)  
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=fmm_green_func)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=fmm_green_func)
 
-        # rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
-        rhs_2 = bempp.api.GridFunction(neumann_space, coefficients=coefs)
+        # rhs_2 = bempp_cl.api.GridFunction(neumann_space, fun=zero)
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space, coefficients=coefs)
 
     else:
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def zero(x, n, domain_index, result):
             result[0] = 0
 
-        @bempp.api.real_callable
+        @bempp_cl.api.real_callable
         def charges_fun(x, n, domain_index, result):
             nrm = np.sqrt(
                 (x[0] - x_q[:, 0]) ** 2
@@ -94,9 +94,9 @@ def rhs(self):
             aux = np.sum(q / nrm)
             result[0] = aux / (4 * np.pi * ep_in)
 
-        rhs_1 = bempp.api.GridFunction(dirichl_space, fun=charges_fun)
+        rhs_1 = bempp_cl.api.GridFunction(dirichl_space, fun=charges_fun)
 
-        rhs_2 = bempp.api.GridFunction(neumann_space, fun=zero)
+        rhs_2 = bempp_cl.api.GridFunction(neumann_space, fun=zero)
 
     self.rhs["rhs_1"], self.rhs["rhs_2"] = rhs_1, rhs_2
     self.rhs["rhs_permanent_multipole_1"], self.rhs["rhs_permanent_multipole_2"] = rhs_1, rhs_2
@@ -186,8 +186,8 @@ def mass_matrix_preconditioner(solute):
 
     # Option A:
     """
-    from bempp.api.utils.helpers import get_inverse_mass_matrix
-    from bempp.api.assembly.blocked_operator import BlockedDiscreteOperator
+    from bempp_cl.api.utils.helpers import get_inverse_mass_matrix
+    from bempp_cl.api.assembly.blocked_operator import BlockedDiscreteOperator
 
     matrix = solute.matrices["A"]
     nrows = len(matrix.range_spaces)
@@ -251,15 +251,15 @@ def lhs_inter_solute_interactions(self, solute_target, solute_source):
         neumann_space_source, neumann_space_target, neumann_space_target, kappa,  assembler=operator_assembler
     )
 
-    zero_00 = bempp.api.assembly.boundary_operator.ZeroBoundaryOperator(
+    zero_00 = bempp_cl.api.assembly.boundary_operator.ZeroBoundaryOperator(
         dirichl_space_source, dirichl_space_target, dirichl_space_target
     )
     
-    zero_01 = bempp.api.assembly.boundary_operator.ZeroBoundaryOperator(
+    zero_01 = bempp_cl.api.assembly.boundary_operator.ZeroBoundaryOperator(
         neumann_space_source, neumann_space_target, neumann_space_target
     )
     
-    A_inter = bempp.api.BlockedOperator(2, 2)
+    A_inter = bempp_cl.api.BlockedOperator(2, 2)
 
     
     A_inter[0, 0] = zero_00

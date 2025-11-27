@@ -1,4 +1,4 @@
-# import bempp.api
+# import bempp_cl.api
 import numpy as np
 import time
 import pbj.implicit_solvent.utils as utils
@@ -49,7 +49,7 @@ def calculate_potential_one_surface(simulation, rerun_all=False, rerun_rhs=False
 
             simulation.timings["time_gmres"] = time.time() - gmres_start_time
 
-            from bempp.api.assembly.blocked_operator import (
+            from bempp_cl.api.assembly.blocked_operator import (
                 grid_function_list_from_coefficients,
             )          
 
@@ -122,7 +122,7 @@ def calculate_potential_stern(simulation, rerun_all=False, rerun_rhs=False):
 
             simulation.timings["time_gmres"] = time.time() - gmres_start_time
 
-            from bempp.api.assembly.blocked_operator import (
+            from bempp_cl.api.assembly.blocked_operator import (
                 grid_function_list_from_coefficients,
             )          
 
@@ -203,7 +203,7 @@ def calculate_potential_slic(self):
     self.timings["time_gmres"].append(time.time() - gmres_start_time)
 
     # Split solution and generate corresponding grid functions
-    from bempp.api.assembly.blocked_operator import (
+    from bempp_cl.api.assembly.blocked_operator import (
         grid_function_list_from_coefficients,
     )
 
