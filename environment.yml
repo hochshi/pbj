@@ -5,7 +5,7 @@ channels:
   - eumetsat
 dependencies:
   - python=3.9
-  - fftw3
+  - fftw
   - jupyter
   - llvmlite
   - matplotlib
@@ -27,6 +27,6 @@ dependencies:
     - trimesh
     - pytest
     - rtree
-    - "git+https://github.com/bempp/bempp-cl.git"
-    - "git+https://github.com/exafmm/exafmm-t.git"
-    - "git+https://github.com/bem4solvation/pbj.git"
+    # - "git+https://github.com/bempp/bempp-cl.git"
+    # - "git+https://github.com/exafmm/exafmm-t.git"
+    # - "git+https://github.com/hochshi/pbj.git"
